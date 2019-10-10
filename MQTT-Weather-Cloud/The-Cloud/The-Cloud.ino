@@ -32,8 +32,7 @@
 #include <SD.h>
 #include <Adafruit_VS1053.h>
 
-//#include "config.h"
-#include "config2.h"
+#include "config.h"
 
 const char* on_cmd = "ON";
 const char* off_cmd = "OFF";
