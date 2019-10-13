@@ -67,7 +67,7 @@ Sending weather information data:
     optimistic: false
     qos: 0
 ```
-**Automation for updating the weather data feed
+**Automation for updating the weather data feed**
 ```
 - id: '1570982839163'
   alias: Weather Update MQTT
