@@ -67,3 +67,21 @@ Sending weather information data:
     optimistic: false
     qos: 0
 ```
+**Automation for updating the weather data feed
+```
+- id: '1570982839163'
+  alias: Weather Update MQTT
+  trigger:
+  - entity_id: weather.dark_sky
+    platform: state
+  - entity_id: sensor.dark_sky_cloud_coverage
+    platform: state
+  - entity_id: sensor.dark_sky_precip_intensity
+    platform: state
+  condition: []
+  action:
+  - service: mqtt.publish
+    data_template:
+      payload_template: "{\"precip\":\"{{ states('sensor.dark_sky_precip_intensity') }}\", \"cover\":\"{{ states('sensor.dark_sky_cloud_coverage') }}\", \"forcast\":\"{{ states('weather.dark_sky') }}\"}"
+      topic: weatherdata
+```
