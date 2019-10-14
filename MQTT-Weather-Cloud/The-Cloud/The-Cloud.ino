@@ -1,20 +1,8 @@
 /*
-  .______   .______    __    __   __    __          ___      __    __  .___________.  ______   .___  ___.      ___   .___________. __    ______   .__   __.
-  |   _  \  |   _  \  |  |  |  | |  |  |  |        /   \    |  |  |  | |           | /  __  \  |   \/   |     /   \  |           ||  |  /  __  \  |  \ |  |
-  |  |_)  | |  |_)  | |  |  |  | |  |__|  |       /  ^  \   |  |  |  | `---|  |----`|  |  |  | |  \  /  |    /  ^  \ `---|  |----`|  | |  |  |  | |   \|  |
-  |   _  <  |      /  |  |  |  | |   __   |      /  /_\  \  |  |  |  |     |  |     |  |  |  | |  |\/|  |   /  /_\  \    |  |     |  | |  |  |  | |  . `  |
-  |  |_)  | |  |\  \-.|  `--'  | |  |  |  |     /  _____  \ |  `--'  |     |  |     |  `--'  | |  |  |  |  /  _____  \   |  |     |  | |  `--'  | |  |\   |
-  |______/  | _| `.__| \______/  |__|  |__|    /__/     \__\ \______/      |__|      \______/  |__|  |__| /__/     \__\  |__|     |__|  \______/  |__| \__|
-
-  Thanks much to @corbanmailloux for providing a great framework for implementing flash/fade with HomeAssistant https://github.com/corbanmailloux/esp-mqtt-rgb-led
+  Thanks much to @bruhautomation for creating the base code for this project.
+  Additional credit gose to @corbanmailloux for providing a great framework for implementing flash/fade with HomeAssistant https://github.com/corbanmailloux/esp-mqtt-rgb-led
   
-  To use this code you will need the following dependancies: 
-  
-  - Support for the ESP8266 boards. 
-        - You can add it to the board manager by going to File -> Preference and pasting http://arduino.esp8266.com/stable/package_esp8266com_index.json into the Additional Board Managers URL field.
-        - Next, download the ESP8266 dependancies by going to Tools -> Board -> Board Manager and searching for ESP8266 and installing it.
-  
-  - You will also need to download the follow libraries by going to Sketch -> Include Libraries -> Manage Libraries
+  - You will need to download the follow libraries by going to Sketch -> Include Libraries -> Manage Libraries
       - FastLED v3.3.2
       - PubSubClient v2.5.0
       - ArduinoJSON v5.13.5
@@ -32,7 +20,7 @@
 #include <SD.h>
 #include <Adafruit_VS1053.h>
 
-#include "config.h"
+#include "config2.h"
 
 const char* on_cmd = "ON";
 const char* off_cmd = "OFF";
@@ -58,7 +46,7 @@ Adafruit_VS1053_FilePlayer musicPlayer =
 
 
 /*********************************** FastLED Defintions ********************************/
-#define NUM_LEDS    75
+#define NUM_LEDS    85
 #define DATA_PIN    5
 #define CHIPSET     WS2811
 #define COLOR_ORDER GRB
@@ -75,17 +63,20 @@ byte brightness = 255;
 
 
 /******************************** GLOBALS for fade/flash *******************************/
+bool colorChange = false;
 bool stateOn = false;
 bool startFade = false;
 bool onbeforeflash = false;
 unsigned long lastLoop = 0;
 int transitionTime = 0;
 
+float recal;
 int precip = 25;
 int snowAccumulation = 25;
 int cloudCover = 25;
 const char* forcast = "sunny";
 String forcastString = "sunny";
+bool weatherTime = false;
 
 int effectSpeed = 0;
 bool inFade = false;
@@ -154,6 +145,10 @@ int antipodal_index(int i) {
 uint8_t gHue = 0;
 
 
+//SUNRISE
+uint8_t heatIndex = 0; // start out at 0
+
+
 WiFiClient espClient;
 PubSubClient client(espClient);
 struct CRGB leds[NUM_LEDS];
@@ -170,10 +165,12 @@ void setup() {
   gPal = HeatColors_p; //for FIRE
 
   clientId += String(random(0xffff), HEX);
-
+  setColor(100, 0, 0);
   setup_wifi();
+  setColor(0, 0, 100);
   client.setServer(mqtt_server, mqtt_port);
   client.setCallback(callback);
+  setColor(0, 100, 0);
 
   Serial.println("Ready");
   Serial.print("IP Address: ");
@@ -204,7 +201,7 @@ void setup() {
 
   musicPlayer.useInterrupt(VS1053_FILEPLAYER_PIN_INT);  // DREQ int
   //musicPlayer.startPlayingFile("night.mp3");
- 
+  setColor(0, 0, 0);
 
 }
 
@@ -259,8 +256,6 @@ void setup_wifi() {
   }
 */
 
-
-
 /********************************** START CALLBACK*****************************************/
 void callback(char* topic, byte* payload, unsigned int length) {
   Serial.print("Message arrived [");
@@ -295,7 +290,6 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
   startFade = true;
   inFade = false; // Kill the current fade
-  musicPlayer.stopPlaying();
   sendState();
 }
 
@@ -344,6 +338,8 @@ bool processJson(char* message) {
     else if (strcmp(root["state"], off_cmd) == 0) {
       stateOn = false;
       onbeforeflash = false;
+      musicPlayer.stopPlaying();
+      Serial.println("Sound Stop");
     }
   }
 
@@ -364,6 +360,7 @@ bool processJson(char* message) {
       flashRed = root["color"]["r"];
       flashGreen = root["color"]["g"];
       flashBlue = root["color"]["b"];
+      if (!colorChange) effectString = "solid";
     }
     else {
       flashRed = red;
@@ -375,6 +372,19 @@ bool processJson(char* message) {
       effect = root["effect"];
       effectString = effect;
       twinklecounter = 0; //manage twinklecounter
+      musicPlayer.stopPlaying();
+      Serial.println("Sound Stop");
+      heatIndex = 0; // Reset Sunrise
+      if (effectString == "weather"){
+        weatherTime = true;
+      }else{
+        weatherTime = false;
+      }
+      if(!stateOn){
+        stateOn = true;
+        sendState();
+      }
+      delay(10);
     }
 
     if (root.containsKey("transition")) {
@@ -403,6 +413,7 @@ bool processJson(char* message) {
       red = root["color"]["r"];
       green = root["color"]["g"];
       blue = root["color"]["b"];
+      if (!colorChange) effectString = "solid";
     }
     
     if (root.containsKey("color_temp")) {
@@ -419,26 +430,59 @@ bool processJson(char* message) {
     }
 
     if (root.containsKey("precip")) {
-      precip = root["precip"];
+      recal = root["precip"];
+      precip = (int) (recal*100);
+      if (weatherTime) {
+        effectString = "weather";
+        musicPlayer.stopPlaying();
+      }
     }
     
     if (root.containsKey("acc")) {
       snowAccumulation = root["acc"];
+      if (weatherTime) {
+        effectString = "weather";
+        musicPlayer.stopPlaying();
+      }
     }
     
     if (root.containsKey("cover")) {
-      cloudCover = root["cover"];
+      recal = root["cover"];
+      cloudCover = (int) recal;
+      if (weatherTime){
+        effectString = "weather";
+        musicPlayer.stopPlaying();
+      }
     }
     
     if (root.containsKey("forcast")) {
       forcast = root["forcast"];
       forcastString = forcast;
+      if (weatherTime) {
+        effectString = "weather";
+        musicPlayer.stopPlaying();
+      }
     }
 
     if (root.containsKey("effect")) {
+      musicPlayer.stopPlaying();
+      Serial.println("Sound Stop");
+      heatIndex = 0; // Reset Sunrise
       effect = root["effect"];
       effectString = effect;
       twinklecounter = 0; //manage twinklecounter
+      if (effectString == "weather"){
+        weatherTime = true;
+      }else{
+        weatherTime = false;
+      }
+      colorChange = false;
+      if(!stateOn){
+        stateOn = true;
+        sendState();
+      }
+      delay(10);
+
     }
 
     if (root.containsKey("transition")) {
@@ -576,6 +620,7 @@ void loop() {
 
   //EFFECT CONFETTI
   if (effectString == "confetti" ) {
+    colorChange = true;
     fadeToBlackBy( leds, NUM_LEDS, 25);
     int pos = random16(NUM_LEDS);
     leds[pos] += CRGB(realRed + random8(64), realGreen, realBlue);
@@ -609,9 +654,16 @@ void loop() {
   //EFFECT Rain
   if (effectString == "rain") {
     if (musicPlayer.stopped()) {
-      musicPlayer.startPlayingFile("rain.mp3");
-      Serial.println("rain.mp3");
+      if (precip < 24){
+        musicPlayer.startPlayingFile("rain1.ogg");
+      } else if (precip < 50){
+        musicPlayer.startPlayingFile("rain2.ogg");
+      } else {
+        musicPlayer.startPlayingFile("rain3.ogg");
+      }
+      Serial.println("rain1.ogg");
     }
+    if (precip == 0) precip = 17;
     fadeToBlackBy( leds, NUM_LEDS, 20);
     addGlitterColor(precip, 0, 0, 255);
       transitionTime = 100;
@@ -626,10 +678,38 @@ void loop() {
       transitionTime = 60;
     showleds();
   }
+
+
+  //EFFECT weather
+  if (effectString == "weather") {
+    if (forcastString == "clear-day" || forcastString == "clearday" || forcastString == "clear" ){
+      effectString = "sunny";
+    }
+    if (forcastString == "rain"){
+      effectString = "rain";
+    }
+    if (forcastString == "fog" || forcastString == "cloudy" || forcastString == "partlycloudy" || forcastString == "partlycloudyday" ){
+      effectString = "overcast";
+    }
+    if (forcastString == "thunderstorm"){
+      effectString = "lightning";
+    }
+    if (forcastString == "snow" || forcastString == "sleet" || forcastString == "hail" ){
+      effectString = "snow";
+    }
+
+//clear-night
+//wind
+//partly-cloudy-night
+//tornado
+    
+  }
   
 
+
   //EFFECT JUGGLE
-  if (effectString == "juggle" ) {                           // eight colored dots, weaving in and out of sync with each other
+  if (effectString == "juggle" ) { // eight colored dots, weaving in and out of sync with each other
+    colorChange = true;
     fadeToBlackBy(leds, NUM_LEDS, 20);
     for (int i = 0; i < 8; i++) {
       leds[beatsin16(i + 7, 0, NUM_LEDS - 1  )] |= CRGB(realRed, realGreen, realBlue);
@@ -733,13 +813,26 @@ void loop() {
 
     //EFFECT SUNRISE
   if (effectString == "sunrise") {
-    // FastLED's built-in rainbow generator
-    static uint8_t starthue = 0;    thishue++;
-    fill_rainbow(leds, NUM_LEDS, thishue, deltahue);
-    if (transitionTime == 0 or transitionTime == NULL) {
-      transitionTime = 130;
+    static const uint8_t sunriseLength = 15;
+  
+    static const uint8_t interval = (sunriseLength * 60) / 256;
+  
+    // current gradient palette color index
+    //static uint8_t heatIndex = 0; // start out at 0
+  
+    CRGB color = ColorFromPalette(HeatColors_p, heatIndex);
+  
+    // fill the entire strip with the current color
+    fill_solid(leds, NUM_LEDS, color);
+  
+    // slowly increase the heat
+    EVERY_N_SECONDS(interval) {
+      // stop incrementing at 255, we don't want to overflow back to 0
+      if(heatIndex < 255) {
+        heatIndex++;
+      }
     }
-    showleds();
+    FastLED.show();
   }
 
 
@@ -862,6 +955,7 @@ void loop() {
 
   //FLASH AND FADE SUPPORT
   if (flash) {
+    colorChange = true;
     if (startFlash) {
       startFlash = false;
       flashStartTime = millis();
@@ -893,6 +987,7 @@ void loop() {
   }
 
   if (startFade && effectString == "solid") {
+    colorChange = true;
     // If we don't want to fade, skip it.
     if (transitionTime == 0) {
       setColor(realRed, realGreen, realBlue);
@@ -914,6 +1009,7 @@ void loop() {
   }
 
   if (inFade) {
+    colorChange = true;
     startFade = false;
     unsigned long now = millis();
     if (now - lastLoop > transitionTime) {
@@ -925,6 +1021,7 @@ void loop() {
         bluVal = calculateVal(stepB, bluVal, loopCount);
 
         if (effectString == "solid") {
+          colorChange = true;
           setColor(redVal, grnVal, bluVal); // Write current values to LED pins
         }
         loopCount++;
@@ -934,6 +1031,7 @@ void loop() {
       }
     }
   }
+  delay(1);
 }
 
 
