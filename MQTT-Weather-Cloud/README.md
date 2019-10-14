@@ -62,6 +62,7 @@ Sending weather information data:
       - lightning
       - rainbow
       - rainbow with glitter 
+      - solid
     brightness: true
     rgb: true
     optimistic: false
