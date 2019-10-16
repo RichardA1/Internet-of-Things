@@ -339,6 +339,7 @@ bool processJson(char* message) {
       stateOn = false;
       onbeforeflash = false;
       musicPlayer.stopPlaying();
+      delay(500);
       Serial.println("Sound Stop");
     }
   }
@@ -373,6 +374,7 @@ bool processJson(char* message) {
       effectString = effect;
       twinklecounter = 0; //manage twinklecounter
       musicPlayer.stopPlaying();
+      delay(500);
       Serial.println("Sound Stop");
       heatIndex = 0; // Reset Sunrise
       if (effectString == "weather"){
@@ -389,7 +391,7 @@ bool processJson(char* message) {
 
     if (root.containsKey("transition")) {
       //transitionTime = root["transition"];
-      musicPlayer.setVolume(root["transition"],root["transition"]);
+      //musicPlayer.setVolume(root["transition"],root["transition"]);
     }
     else if ( effectString == "solid") {
       transitionTime = 0;
@@ -435,6 +437,7 @@ bool processJson(char* message) {
       if (weatherTime) {
         effectString = "weather";
         musicPlayer.stopPlaying();
+      delay(500);
       }
     }
     
@@ -443,6 +446,7 @@ bool processJson(char* message) {
       if (weatherTime) {
         effectString = "weather";
         musicPlayer.stopPlaying();
+      delay(500);
       }
     }
     
@@ -452,6 +456,7 @@ bool processJson(char* message) {
       if (weatherTime){
         effectString = "weather";
         musicPlayer.stopPlaying();
+      delay(500);
       }
     }
     
@@ -461,11 +466,13 @@ bool processJson(char* message) {
       if (weatherTime) {
         effectString = "weather";
         musicPlayer.stopPlaying();
+      delay(500);
       }
     }
 
     if (root.containsKey("effect")) {
       musicPlayer.stopPlaying();
+      delay(500);
       Serial.println("Sound Stop");
       heatIndex = 0; // Reset Sunrise
       effect = root["effect"];
@@ -653,7 +660,7 @@ void loop() {
 
   //EFFECT Rain
   if (effectString == "rain") {
-    if (musicPlayer.stopped()) {
+    if (musicPlayer.stopped() && stateOn) {
       if (precip < 24){
         musicPlayer.startPlayingFile("rain1.ogg");
       } else if (precip < 50){
@@ -682,26 +689,32 @@ void loop() {
 
   //EFFECT weather
   if (effectString == "weather") {
-    if (forcastString == "clear-day" || forcastString == "clearday" || forcastString == "clear" ){
+    if (forcastString == "clear-day" || forcastString == "clearday" || forcastString == "clear" || forcastString == "sunny" || forcastString == "exceptional"){
       effectString = "sunny";
     }
-    if (forcastString == "rain"){
+    if (forcastString == "clear-night"){
+      effectString = "night";
+    }
+    if (forcastString == "rain" || forcastString == "pouring" || forcastString == "rainy"){
       effectString = "rain";
     }
-    if (forcastString == "fog" || forcastString == "cloudy" || forcastString == "partlycloudy" || forcastString == "partlycloudyday" ){
+    if (forcastString == "fog" || forcastString == "cloudy" || forcastString == "partlycloudy" || forcastString == "partlycloudyday" || forcastString == "partly-cloudy-night"){
       effectString = "overcast";
     }
-    if (forcastString == "thunderstorm"){
+    if (forcastString == "thunderstorm" || forcastString == "lightning" || forcastString == "lightning-rainy"){
       effectString = "lightning";
     }
-    if (forcastString == "snow" || forcastString == "sleet" || forcastString == "hail" ){
+    if (forcastString == "snow" || forcastString == "snowy" || forcastString == "snowy-rainy" || forcastString == "sleet" || forcastString == "hail" ){
       effectString = "snow";
+    }
+    if (forcastString == "wind" || forcastString == "windy" || forcastString == "windy-variant"){
+      effectString = "wind";
     }
 
 //clear-night
-//wind
-//partly-cloudy-night
+//
 //tornado
+
     
   }
   
@@ -723,7 +736,7 @@ void loop() {
 
   //EFFECT LIGHTNING
   if (effectString == "lightning") {
-    if (musicPlayer.stopped()) {
+    if (musicPlayer.stopped() && stateOn) {
     twinklecounter = twinklecounter + 1;                     //Resets strip if previous animation was running
     if (twinklecounter < 2) {
       FastLED.clear();
@@ -800,6 +813,17 @@ void loop() {
   }
 
 
+  //EFFECT WIND
+  if (effectString == "wind") {
+    transitionTime = 70;
+    for (int i = 0; i < NUM_LEDS; i++ ) {
+        leds[i] = CHSV(40, 0, 150);
+        showleds();
+        fadeToBlackBy( leds, NUM_LEDS, 10);
+    }  
+  }
+
+
   //EFFECT RAINBOW
   if (effectString == "rainbow") {
     // FastLED's built-in rainbow generator
@@ -851,6 +875,7 @@ void loop() {
 
   //EFFECT SIENLON
   if (effectString == "sinelon") {
+    colorChange = true;
     fadeToBlackBy( leds, NUM_LEDS, 20);
     int pos = beatsin16(13, 0, NUM_LEDS - 1);
     leds[pos] += CRGB(realRed, realGreen, realBlue);
@@ -912,7 +937,7 @@ void loop() {
 
     //EFFECT SUNNY
     if (effectString == "sunny") {
-      if (musicPlayer.stopped()) {
+      if (musicPlayer.stopped() && stateOn) {
         musicPlayer.startPlayingFile("birds.mp3");
           Serial.println("birds.mp3");
       }
