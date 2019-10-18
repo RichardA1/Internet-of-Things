@@ -8,6 +8,7 @@
       - ArduinoJSON v5.13.5
 */
 
+
 #include <ArduinoJson.h>
 #include <ESP8266WiFi.h> 
 #include <PubSubClient.h>
@@ -69,6 +70,10 @@ bool startFade = false;
 bool onbeforeflash = false;
 unsigned long lastLoop = 0;
 int transitionTime = 0;
+int SetVolume = 100;
+int fadeOut = 0;
+int fadeBrightness = 0;
+bool stateSound = true;
 
 float recal;
 int precip = 25;
@@ -243,6 +248,8 @@ void setup_wifi() {
     "flash": 2,
     "transition": 5,
     "state": "ON",
+    "volume": 100,
+    "fade": 5
   }
 */
 
@@ -338,11 +345,56 @@ bool processJson(char* message) {
     else if (strcmp(root["state"], off_cmd) == 0) {
       stateOn = false;
       onbeforeflash = false;
-      musicPlayer.stopPlaying();
-      delay(500);
-      Serial.println("Sound Stop");
+      StopSoundFX();
     }
   }
+
+  if (root.containsKey("volume")) {
+    SetVolume = map(root["volume"], 0, 100, 100, 0);
+    musicPlayer.setVolume(SetVolume,SetVolume);
+    if (SetVolume < 1){
+      stateSound = false;
+    } else {
+      stateSound = true;
+    }
+  }
+
+  if (root.containsKey("fade")) {
+    fadeOut = root["fade"];
+    fadeBrightness = brightness;
+  }
+
+    if (root.containsKey("precip")) {
+      recal = root["precip"];
+      precip = (int) (recal*100);
+      if (weatherTime) {
+        effectString = "weather";
+      }
+    }
+    
+    if (root.containsKey("acc")) {
+      snowAccumulation = root["acc"];
+      if (weatherTime) {
+        effectString = "weather";
+      }
+    }
+    
+    if (root.containsKey("cover")) {
+      recal = root["cover"];
+      cloudCover = (int) recal;
+      if (weatherTime){
+        effectString = "weather";
+      }
+    }
+    
+    if (root.containsKey("forcast")) {
+      forcast = root["forcast"];
+      forcastString = forcast;
+      if (weatherTime) {
+        effectString = "weather";
+        StopSoundFX();
+      }
+    }
 
   // If "flash" is included, treat RGB and brightness differently
   if (root.containsKey("flash")) {
@@ -373,9 +425,7 @@ bool processJson(char* message) {
       effect = root["effect"];
       effectString = effect;
       twinklecounter = 0; //manage twinklecounter
-      musicPlayer.stopPlaying();
-      delay(500);
-      Serial.println("Sound Stop");
+      StopSoundFX();
       heatIndex = 0; // Reset Sunrise
       if (effectString == "weather"){
         weatherTime = true;
@@ -390,8 +440,7 @@ bool processJson(char* message) {
     }
 
     if (root.containsKey("transition")) {
-      //transitionTime = root["transition"];
-      //musicPlayer.setVolume(root["transition"],root["transition"]);
+      transitionTime = root["transition"];
     }
     else if ( effectString == "solid") {
       transitionTime = 0;
@@ -431,49 +480,8 @@ bool processJson(char* message) {
       brightness = root["brightness"];
     }
 
-    if (root.containsKey("precip")) {
-      recal = root["precip"];
-      precip = (int) (recal*100);
-      if (weatherTime) {
-        effectString = "weather";
-        musicPlayer.stopPlaying();
-      delay(500);
-      }
-    }
-    
-    if (root.containsKey("acc")) {
-      snowAccumulation = root["acc"];
-      if (weatherTime) {
-        effectString = "weather";
-        musicPlayer.stopPlaying();
-      delay(500);
-      }
-    }
-    
-    if (root.containsKey("cover")) {
-      recal = root["cover"];
-      cloudCover = (int) recal;
-      if (weatherTime){
-        effectString = "weather";
-        musicPlayer.stopPlaying();
-      delay(500);
-      }
-    }
-    
-    if (root.containsKey("forcast")) {
-      forcast = root["forcast"];
-      forcastString = forcast;
-      if (weatherTime) {
-        effectString = "weather";
-        musicPlayer.stopPlaying();
-      delay(500);
-      }
-    }
-
     if (root.containsKey("effect")) {
-      musicPlayer.stopPlaying();
-      delay(500);
-      Serial.println("Sound Stop");
+      StopSoundFX();
       heatIndex = 0; // Reset Sunrise
       effect = root["effect"];
       effectString = effect;
@@ -520,7 +528,7 @@ void sendState() {
 
   root["brightness"] = brightness;
   root["effect"] = effectString.c_str();
-
+  root["volume"] = SetVolume;
 
   char buffer[root.measureLength() + 1];
   root.printTo(buffer, sizeof(buffer));
@@ -660,7 +668,7 @@ void loop() {
 
   //EFFECT Rain
   if (effectString == "rain") {
-    if (musicPlayer.stopped() && stateOn) {
+    if (musicPlayer.stopped() && stateOn && stateSound) {
       if (precip < 24){
         musicPlayer.startPlayingFile("rain1.ogg");
       } else if (precip < 50){
@@ -683,6 +691,23 @@ void loop() {
     fadeToBlackBy( leds, NUM_LEDS, 20);
     addGlitterColor(snowAccumulation, 125, 125, 125);
       transitionTime = 60;
+    showleds();
+  }
+
+    //EFFECT Night
+  if (effectString == "night") {
+    if (musicPlayer.stopped() && stateOn && stateSound) {
+      musicPlayer.startPlayingFile("night.ogg");
+      Serial.println("night.ogg");
+    }
+    CRGB bgColor( 10, 0, 15); // pine green ?
+    
+    // fade all existing pixels toward bgColor by "5" (out of 255)
+    fadeTowardColor( leds, NUM_LEDS, bgColor, 10);
+    
+    addGlitterColor(5, 255, 255, 25);   
+
+    transitionTime = 20;
     showleds();
   }
 
@@ -736,7 +761,7 @@ void loop() {
 
   //EFFECT LIGHTNING
   if (effectString == "lightning") {
-    if (musicPlayer.stopped() && stateOn) {
+    if (musicPlayer.stopped() && stateOn && stateSound) {
     twinklecounter = twinklecounter + 1;                     //Resets strip if previous animation was running
     if (twinklecounter < 2) {
       FastLED.clear();
@@ -888,6 +913,10 @@ void loop() {
 
   //EFFECT TWINKLE
   if (effectString == "twinkle") {
+      if (musicPlayer.stopped() && stateOn && stateSound) {
+        musicPlayer.startPlayingFile("night.ogg");
+          Serial.println("night.ogg");
+      }
     twinklecounter = twinklecounter + 1;
     if (twinklecounter < 2) {                               //Resets strip if previous animation was running
       FastLED.clear();
@@ -937,8 +966,8 @@ void loop() {
 
     //EFFECT SUNNY
     if (effectString == "sunny") {
-      if (musicPlayer.stopped() && stateOn) {
-        musicPlayer.startPlayingFile("birds.mp3");
+      if (musicPlayer.stopped() && stateOn && stateSound) {
+        musicPlayer.startPlayingFile("birds.ogg");
           Serial.println("birds.mp3");
       }
       transitionTime = 20;
@@ -1119,7 +1148,12 @@ int calculateVal(int step, int val, int i) {
   return val;
 }
 
-
+/**************************** START Sound Functions *****************************************/
+void StopSoundFX() {
+  musicPlayer.stopPlaying();
+  delay(200);
+  Serial.println("Sound Stop");  
+}
 
 /**************************** START STRIPLED PALETTE *****************************************/
 void setupStripedPalette( CRGB A, CRGB AB, CRGB B, CRGB BA) {
@@ -1166,7 +1200,23 @@ void showleds() {
   delay(1);
 
   if (stateOn) {
-    FastLED.setBrightness(brightness);  //EXECUTE EFFECT COLOR
+    if (fadeBrightness>0){
+      unsigned long now = millis();
+      if (now - lastLoop > 10000) {
+        if (loopCount <= 1020) {
+          lastLoop = now;
+          fadeBrightness -= fadeOut;
+        }
+      }
+      if(fadeBrightness>0){
+        FastLED.setBrightness(fadeBrightness);  //EXECUTE EFFECT COLOR
+      } else {
+        stateOn = false;
+        sendState();
+      }
+    } else {
+      FastLED.setBrightness(brightness);  //EXECUTE EFFECT COLOR
+    }
     FastLED.show();
     if (transitionTime > 0 && transitionTime < 130) {  //Sets animation speed based on receieved value
       FastLED.delay(1000 / transitionTime);
@@ -1231,4 +1281,41 @@ void temp2rgb(unsigned int kelvin) {
             blue = tmp_blue;
         }
     }
+}
+
+//--------------------------- Fade to Color Exsample --------------------------//
+// Helper function that blends one uint8_t toward another by a given amount
+void nblendU8TowardU8( uint8_t& cur, const uint8_t target, uint8_t amount)
+{
+  if( cur == target) return;
+ 
+  if( cur < target ) {
+    uint8_t delta = target - cur;
+    delta = scale8_video( delta, amount);
+    cur += delta;
+  } else {
+    uint8_t delta = cur - target;
+    delta = scale8_video( delta, amount);
+    cur -= delta;
+  }
+}
+
+// Blend one CRGB color toward another CRGB color by a given amount.
+// Blending is linear, and done in the RGB color space.
+// This function modifies 'cur' in place.
+CRGB fadeTowardColor( CRGB& cur, const CRGB& target, uint8_t amount)
+{
+  nblendU8TowardU8( cur.red,   target.red,   amount);
+  nblendU8TowardU8( cur.green, target.green, amount);
+  nblendU8TowardU8( cur.blue,  target.blue,  amount);
+  return cur;
+}
+
+// Fade an entire array of CRGBs toward a given background color by a given amount
+// This function modifies the pixel array in place.
+void fadeTowardColor( CRGB* L, uint16_t N, const CRGB& bgColor, uint8_t fadeAmount)
+{
+  for( uint16_t i = 0; i < N; i++) {
+    fadeTowardColor( L[i], bgColor, fadeAmount);
+  }
 }
