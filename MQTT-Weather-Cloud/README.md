@@ -1,12 +1,13 @@
 # MQTT-Weather-Cloud
 
-Use the following feeds and JSON formatting:
+## Use the following feeds and JSON formatting ##
 
-Sending user controll data:
+### Sending user controll data ###
 
-**Feed**: cloud/set
+#### Feed ####
+**cloud/set**
 
-**Payload**:
+#### Payload ####
 ```
   {
     "brightness": 120,
@@ -18,10 +19,17 @@ Sending user controll data:
     "flash": 2,
     "transition": 5,
     "state": "ON",
-    "effect": "solid"
+    "effect": "solid",
+    "volume": 100,
+    "fade": 3
   }
 ```  
-Sending weather information data:
+Volume Control:
+***volume***: A number from 0-100 with zero being no sound and 100 being max volume.
+***fade***: A number from 1-255 representing the number to subtract from the brightness every 10 seconds. This is for slow fade outs up to 45 minutes long.
+
+
+### Sending weather information data ###
 
 **Feed**: cloud/data
 
