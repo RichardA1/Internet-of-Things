@@ -21,13 +21,27 @@
 #include <SD.h>
 #include <Adafruit_VS1053.h>
 
-#include "config2.h"
+/**************************** FOR PubSub **************************************************/
+char ssid[20];
+char password[20];
+char mqtt_server[20];
+char mqtt_username[20];
+char mqtt_password[20];
+const int mqtt_port = 1883;
+
+String clientId = "CloudLight"; //change this to whatever you want to call your device
+
+/************* MQTT TOPICS (change these topics as you wish)  **************************/
+const char* light_state_topic = "cloud";
+const char* light_set_topic = "cloud/set";
+const char* weather_data_topic = "weatherdata";
 
 const char* on_cmd = "ON";
 const char* off_cmd = "OFF";
 const char* effect = "solid";
 String effectString = "solid";
 String oldeffectString = "solid";
+
 
 
 /****************************************FOR JSON***************************************/
@@ -169,6 +183,27 @@ void setup() {
   setupStripedPalette( CRGB::Red, CRGB::Red, CRGB::White, CRGB::White); //for CANDY CANE
   gPal = HeatColors_p; //for FIRE
 
+  //##### Music Maker setup
+  Serial.println("\n\nAdafruit VS1053 Feather Test");
+  
+  if (! musicPlayer.begin()) { // initialise the music player
+     Serial.println(F("Couldn't find VS1053, do you have the right pins defined?"));
+     while (1);
+  }
+
+  Serial.println(F("VS1053 found"));
+  if (!SD.begin(CARDCS)) {
+    Serial.println(F("SD failed, or not present"));
+    while (1);  // don't do anything more
+  }
+  Serial.println("SD OK!");
+  // list files
+  printDirectory(SD.open("/"), 0);
+  
+  // Get the Network info from the SD Card
+  getConfigSD();
+
+  
   clientId += String(random(0xffff), HEX);
   setColor(100, 0, 0);
   setup_wifi();
@@ -181,25 +216,7 @@ void setup() {
   Serial.print("IP Address: ");
   Serial.println(WiFi.localIP());
 
-  //##### Music Maker setup
-  Serial.println("\n\nAdafruit VS1053 Feather Test");
   
-  if (! musicPlayer.begin()) { // initialise the music player
-     Serial.println(F("Couldn't find VS1053, do you have the right pins defined?"));
-     while (1);
-  }
-
-  Serial.println(F("VS1053 found"));
- 
-  //musicPlayer.sineTest(0x44, 500);    // Make a tone to indicate VS1053 is working
-  
-  if (!SD.begin(CARDCS)) {
-    Serial.println(F("SD failed, or not present"));
-    while (1);  // don't do anything more
-  }
-  Serial.println("SD OK!");
-  // list files
-  printDirectory(SD.open("/"), 0);
   
   // Set volume for left, right channels. lower numbers == louder volume!
   musicPlayer.setVolume(1,1);
@@ -211,7 +228,38 @@ void setup() {
 }
 
 
-
+/********************************** START Get Network info from SD Card *****************************************/
+void getConfigSD() {
+  File dataFile = SD.open("CONFIG~1.TXT");
+  // if the file is available, write to it:
+  if (dataFile) {
+    while (dataFile.available()) {
+      String Trash = dataFile.readStringUntil('"');
+      String msgSSID = dataFile.readStringUntil('"');
+      Trash = dataFile.readStringUntil('"');
+      String msgPASS = dataFile.readStringUntil('"');
+      Trash = dataFile.readStringUntil('"');
+      String msgMQTT = dataFile.readStringUntil('"');
+      Trash = dataFile.readStringUntil('"');
+      String msgMQTTuser = dataFile.readStringUntil('"');
+      Trash = dataFile.readStringUntil('"');
+      String msgMQTTpass = dataFile.readStringUntil('"');
+        msgSSID.toCharArray(ssid, 20);
+        msgPASS.toCharArray(password, 20);
+        msgMQTT.toCharArray(mqtt_server, 20);
+        msgMQTTuser.toCharArray(mqtt_username, 20);
+        msgMQTTpass.toCharArray(mqtt_password, 20);
+    } 
+    dataFile.close();
+    Serial.println(ssid);
+    Serial.println(password);
+    Serial.println(mqtt_server);
+    Serial.println(mqtt_username);
+    Serial.println(mqtt_password);
+  } else {
+    Serial.println("error opening config.txt");
+  }
+}
 
 /********************************** START SETUP WIFI*****************************************/
 void setup_wifi() {
