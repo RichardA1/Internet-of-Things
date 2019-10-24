@@ -21,12 +21,17 @@
     "state": "ON",
     "effect": "solid",
     "volume": 100,
-    "fade": 3
+    "fade": 3,
+    "sound": "1 min"
   }
 ```  
 Volume Control:
+
 ***volume***: A number from 0-100 with zero being no sound and 100 being max volume.
+
 ***fade***: A number from 1-255 representing the number to subtract from the brightness every 10 seconds. This is for slow fade outs up to 45 minutes long.
+
+***sound***: How is the sound handled. Options are 1 min, 5 mins, loop, or none.
 
 
 ### Sending weather information data ###
@@ -62,11 +67,13 @@ Volume Control:
       - twinkle
       - noise
       - sunrise
+      - night
       - weather
       - sunny
       - overcast
       - rain
       - snow
+      - wind
       - lightning
       - rainbow
       - rainbow with glitter 
