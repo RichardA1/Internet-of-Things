@@ -22,7 +22,7 @@
     "effect": "solid",
     "volume": 100,
     "fade": 3,
-    "sound": "1 min"
+    "sound": "loop"
   }
 ```  
 Volume Control:
@@ -31,7 +31,7 @@ Volume Control:
 
 ***fade***: A number from 1-255 representing the number to subtract from the brightness every 10 seconds. This is for slow fade outs up to 45 minutes long.
 
-***sound***: How is the sound handled. Options are 1 min, 5 mins, loop, or none.
+***sound***: How is the sound handled. Options are 1, 5, loop, or none.
 
 
 ### Sending weather information data ###
