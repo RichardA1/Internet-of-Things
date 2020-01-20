@@ -230,7 +230,7 @@ void setup() {
 
 /********************************** START Get Network info from SD Card *****************************************/
 void getConfigSD() {
-  File dataFile = SD.open("CONFIG~1.TXT");
+  File dataFile = SD.open("CONFIG.TXT");
   // if the file is available, write to it:
   if (dataFile) {
     while (dataFile.available()) {
