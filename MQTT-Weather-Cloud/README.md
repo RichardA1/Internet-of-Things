@@ -52,6 +52,7 @@ Volume Control:
 
 **YAML file Exsample**:
 ```
+light:
   - platform: mqtt
     schema: json
     name: "New Cloud"
@@ -84,7 +85,35 @@ Volume Control:
     rgb: true
     optimistic: false
     qos: 0
+
+input_number:
+  cloud_animation_speed:
+    name: Cloud Speed
+    initial: 150
+    min: 1
+    max: 150
+    step: 10
+  cloud_volume:
+    name: Cloud Volume
+    initial: 100
+    min: 0
+    max: 100
+    step: 10
+
+weather:
+  - platform: darksky
+    api_key: #YourAPIkey
+    mode: daily
+
+sensor:
+  - platform: darksky
+    api_key: #YourAPIkey
+    monitored_conditions:
+      - precip_intensity
+      - precip_accumulation
+      - cloud_cover
 ```
+
 **Automation for updating the weather data feed**
 ```
 - id: '1570982839163'
@@ -102,4 +131,31 @@ Volume Control:
     data_template:
       payload_template: "{\"precip\":\"{{ states('sensor.dark_sky_precip_intensity') }}\", \"cover\":\"{{ states('sensor.dark_sky_cloud_coverage') }}\", \"forcast\":\"{{ states('weather.dark_sky') }}\"}"
       topic: weatherdata
+```
+
+**Automation for Volume and Animation speed slider
+```
+- id: '1571439534847'
+  alias: Cloud Speed
+  trigger:
+  - entity_id: input_number.cloud_speed
+    platform: state
+  condition: []
+  action:
+  - data_template:
+      topic: cloud
+      payload_template: '{"transition": {{ states(''input_number.cloud_speed'')
+        }} }'
+    service: mqtt.publish
+- id: '1571439606917'
+  alias: Cloud Volume
+  trigger:
+  - entity_id: input_number.cloud_volume
+    platform: state
+  condition: []
+  action:
+  - data_template:
+      topic: cloud/set
+      payload_template: '{"volume": {{ states(''input_number.cloud_volume'') }} }'
+    service: mqtt.publish
 ```
