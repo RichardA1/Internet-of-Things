@@ -1,0 +1,5 @@
+SSID: "Your WiFi Name"
+PASS: "WiFipassword"
+MQTT: "YourMQTThost"
+MQTTuser: "yourMQTTuser"
+MQTTpass: "yourMQTTpassword"
