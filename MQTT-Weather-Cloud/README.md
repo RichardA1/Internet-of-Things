@@ -1,4 +1,6 @@
 # MQTT-Weather-Cloud
+## Passing WiFi and MQTT credentials to the Cloud
+Network configuration is don via the config.txt file that will need to be saved onto your microSD card. This will be loaded on startup and used to connect to your WiFi Network and MQTT server.
 
 ## Use the following feeds and JSON formatting ##
 
