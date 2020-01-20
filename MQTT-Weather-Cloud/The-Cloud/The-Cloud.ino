@@ -244,11 +244,11 @@ void getConfigSD() {
       String msgMQTTuser = dataFile.readStringUntil('"');
       Trash = dataFile.readStringUntil('"');
       String msgMQTTpass = dataFile.readStringUntil('"');
-        msgSSID.toCharArray(ssid, 20);
-        msgPASS.toCharArray(password, 20);
-        msgMQTT.toCharArray(mqtt_server, 20);
-        msgMQTTuser.toCharArray(mqtt_username, 20);
-        msgMQTTpass.toCharArray(mqtt_password, 20);
+        msgSSID.toCharArray(ssid, 30);
+        msgPASS.toCharArray(password, 25);
+        msgMQTT.toCharArray(mqtt_server, 40);
+        msgMQTTuser.toCharArray(mqtt_username, 25);
+        msgMQTTpass.toCharArray(mqtt_password, 25);
     } 
     dataFile.close();
     Serial.println(ssid);
